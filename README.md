@@ -2,7 +2,7 @@
 
 Music-first workflow for making AI-assisted musical videos and MV-style short films.
 
-This skill helps an agent plan and produce a music video from the song outward: lyrics, vocals, climax windows, short lip-sync moments, keyframes, Seedance video generation, EDL, preview page, and final ffmpeg post-production.
+This skill helps an agent plan and produce a music video from the song outward: lyrics, vocals, climax windows, short lip-sync moments, voice direction, keyframes, Seedance video generation, EDL, preview page, and final ffmpeg post-production.
 
 ## What It Is For
 
@@ -13,9 +13,13 @@ This skill helps an agent plan and produce a music video from the song outward: 
 
 The core principle is simple: **the song is the master timeline**. Visuals, captions, covers, overlays, and edits must serve the music timing, not the other way around.
 
+V2 adds a second core principle: **voice must be directed, not merely generated**. For narration, TTS, cloned voice, or vocal performance, create a voice director plan, audition the strongest 15-20 seconds, then freeze the accepted voice template before long-form generation.
+
 ## Key Rules
 
 - Analyze music climax windows before designing shots.
+- Create `voice_director_plan.json` before long TTS / narration / vocal clone generation.
+- Confirm A/B/C voice auditions before generating full-length voice.
 - Use short lip-sync clips, usually 3-4 seconds, not long continuous lip-sync by default.
 - For Seedance MV generation, use `generate_audio: false`; final audio comes from the master song.
 - Freeze confirmed A/B/C lip-sync offsets in the EDL.
@@ -26,18 +30,23 @@ The core principle is simple: **the song is the master timeline**. Visuals, capt
 ## Workflow
 
 1. Lock or generate the song.
-2. Analyze lyrics, vocal timing, beat, energy, and climax windows.
-3. Build a timeline and initial shot classification.
-4. Let the director/LLM revise the shot plan around the real musical peaks.
-5. Generate keyframes and update `preview.html`.
-6. Generate Seedance clips serially, with cost control.
-7. Build the EDL and final edit with ffmpeg.
-8. Export contact sheets and lip-sync proof clips.
+2. Build the voice director plan when the project needs narration, TTS, cloned voice, or vocal performance.
+3. Analyze lyrics, vocal timing, beat, energy, and climax windows.
+4. Build a timeline and initial shot classification.
+5. Let the director/LLM revise the shot plan around the real musical peaks.
+6. Generate keyframes and update `preview.html`.
+7. Generate Seedance clips serially, with cost control.
+8. Build the EDL and final edit with ffmpeg.
+9. Export contact sheets and lip-sync proof clips.
+10. Validate the audio lock before delivery.
 
 ## Main Files
 
 - `SKILL.md` - core operating instructions.
 - `references/lip-sync-policy.md` - short lip-sync strategy and post-production timing rules.
+- `references/voice-direction.md` - voice director plan, A/B/C audition, accepted voice template.
+- `references/audio-lock-policy.md` - master audio timeline, cover replace/insert policy, EDL gates.
+- `references/post-production-sound.md` - EQ, compression, loudness, ducking, voice finishing.
 - `references/workflow.md` - end-to-end workflow reference.
 - `references/director-template.md` - structured director planning template.
 - `references/prompt-craft.md` - image/video prompt guidance.
@@ -49,6 +58,8 @@ The core principle is simple: **the song is the master timeline**. Visuals, capt
 - `scripts/build_video_prompts.py` - generate creative prompts from a shot plan.
 - `scripts/build_preview.py` - generate the review-board `preview.html`.
 - `scripts/generate_elevenlabs_song.py` - ElevenLabs music generation helper.
+- `scripts/export_lipsync_proofs.py` - export proof clips from the final video itself.
+- `scripts/validate_audio_lock.py` - validate EDL timing, cover mode, lip-sync offsets, final duration.
 
 ## Typical Command Flow
 
@@ -66,10 +77,23 @@ python scripts/build_video_prompts.py shot_plan.director.json --output video_pro
 python scripts/build_preview.py shot_plan.director.json \
   --prompts video_prompts.json \
   --climax music_climax_analysis.json \
+  --proof-dir videos/final/lipsync_proof \
   --output previews/preview.html
+```
+
+Before delivery, export final proof clips and validate the audio lock:
+
+```bash
+python scripts/export_lipsync_proofs.py final_edl.json \
+  --final-video final_output.mp4 \
+  --output-dir lipsync_proof \
+  --update-edl
+
+python scripts/validate_audio_lock.py final_edl.json \
+  --final-video final_output.mp4 \
+  --require-proofs
 ```
 
 ## Notes
 
 This repository contains only the skill code and documentation. It does not include generated videos, audio files, API keys, or project assets.
-

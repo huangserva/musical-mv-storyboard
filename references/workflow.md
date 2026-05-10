@@ -8,6 +8,8 @@ End-to-end walkthrough of the musical MV storyboard pipeline, with realistic dat
 
 ```
 song.mp3
+  ↓ [optional but required for TTS/narration/cloned vocal]
+voice_director_plan.json
   ↓ analyze_audio.py
 audio_analysis.json
   ↓ analyze_climax_windows.py
@@ -22,6 +24,8 @@ shot_plan.director.json
 video_prompts.json
   ↓ [keyframes → preview.html gate → Seedance I2V → EDL/ffmpeg]
 final_output.mp4
+  ↓ export_lipsync_proofs.py + validate_audio_lock.py
+lipsync_proof/*.mp4 + validated EDL
 ```
 
 ---
@@ -31,6 +35,19 @@ final_output.mp4
 Either generate via ElevenLabs or use a user-provided file. Output: `song.mp3`.
 
 Example: Chinese pop 唱跳 song, 90 seconds, 128 BPM.
+
+### Step 1.5: Direct the Voice
+
+If the project uses narration, TTS, cloned voice, or a generated vocal performance, create `voice_director_plan.json` before long-form generation.
+
+Minimum required fields:
+- `voice_goal`
+- `reference_voice`
+- `global_delivery`
+- per-segment `visual_context`, `performance_intent`, `emotion`, `pace`, `pauses`, `emphasis`
+- `audition_variants`
+
+Generate only the strongest 15-20s first. After the user selects A/B/C, freeze `accepted_voice_template`. Do not split long voice sentence-by-sentence unless the model requires it.
 
 ---
 

@@ -2,8 +2,8 @@
 name: musical-mv-storyboard
 description: "音乐剧/MV导演规划 skill：music-first 的音乐视频制作流水线。从歌曲/歌词生成或导入，到 Whisper/能量/爆点分析、短对口型布点、导演分镜、关键帧、生视频、EDL/preview.html、ffmpeg 后期合成。适用于真人音乐剧、唱跳 MV、剧情 MV、AI 生成歌曲配视频。"
 metadata:
-  tags: [musical, MV, music video, lyrics, lip sync, 唱跳, 音乐剧]
-  version: "2.4"
+  tags: [musical, MV, music video, lyrics, lip sync, 唱跳, 音乐剧, voice direction]
+  version: "2.5"
 ---
 
 # Musical MV Storyboard
@@ -29,6 +29,7 @@ metadata:
 - **画面变大不等于音乐更炸**。雷电、金光、群舞必须踩在 `music_climax_analysis.json` 的爆点窗口上才成立。
 - **APImart Seedance MV 参数**：`image_urls`、`size: "9:16"`、`resolution: "480p"`、`generate_audio: false`。
 - **最终音频只用主歌曲**：视频模型不要生成 BGM/独立音频；合成时 `-map 0:v -map 1:a` 覆盖完整 `song.mp3`。
+- **声音需要被导演**：TTS/演唱/旁白不能只丢文案给模型；先写 `voice_director_plan.json`，用 15-20s A/B/C 小样确认声音模板，再生成长音频。
 - **主歌曲时间轴是母版**：一旦 `song.mp3`、Whisper 时间戳、EDL 开始使用，后期只能把画面贴到音乐上，不能移动音乐去适配画面。
 - **已确认口型 offset 必须冻结**：A/B/C 小样确认后，在 EDL 记录 `confirmed_variant` 和 `lip_sync_offset_seconds`；封面、字幕、特效、重合成不得改变这些窗口。
 - **封面/标题卡默认 replace，不默认 insert**：MV 成片加封面时，默认替换原片前 N 秒，保持全片时间轴不变；若选择插入 N 秒，必须重算所有 EDL、字幕和口型窗口。
@@ -43,6 +44,14 @@ metadata:
 - 使用用户提供的音频，或用 `scripts/generate_elevenlabs_song.py` 生成 vocal song。
 - 明确主唱性别、语言、歌词、时长、BPM/风格目标。
 - Output: `song.mp3`、`song.json`、`song.prompt.txt`。
+
+### Step 1.5: Voice Director（V2）
+
+如果项目包含 TTS、旁白、演唱克隆或明显的人声表演，必须先写 `voice_director_plan.json`：
+- 每句标注 `visual_context`、`performance_intent`、`emotion`、`pace`、`pauses`、`emphasis`、`breath`。
+- 先挑最关键 15-20s 做 A/B/C 试音，不要一开始生成全片。
+- 用户确认后冻结 `accepted_voice_template`，长音频复用同一参考声音、模型、提示词和后期链。
+- 参见 `references/voice-direction.md`。
 
 ### Step 2: Audio + Lyrics Analysis
 
@@ -125,6 +134,7 @@ python ~/.hermes/skills/creative/musical-mv-storyboard/scripts/build_preview.py 
   --qc-video-dir videos/seedance/qc_audio \
   --final-video videos/final/final_output.mp4 \
   --focus-video videos/final/issue_excerpt.mp4 \
+  --proof-dir videos/final/lipsync_proof \
   --contact-sheet videos/final/final_contact.jpg \
   --edl videos/final/final_edl.json \
   --output previews/preview.html
@@ -191,6 +201,21 @@ Seedance 规则：
 - 只有明确需要片头新增时才用 `insert N seconds`；一旦 insert，必须整体重算 EDL、字幕、口型 proof 时间点。
 - 每次最终导出后，从最终成片导出所有口型 proof clips，并放进 `preview.html` 第一屏或“口型复查”区域。
 
+推荐本地门禁：
+
+```bash
+python ~/.hermes/skills/creative/musical-mv-storyboard/scripts/export_lipsync_proofs.py \
+  final_edl.json \
+  --final-video final_output.mp4 \
+  --output-dir lipsync_proof \
+  --update-edl
+
+python ~/.hermes/skills/creative/musical-mv-storyboard/scripts/validate_audio_lock.py \
+  final_edl.json \
+  --final-video final_output.mp4 \
+  --require-proofs
+```
+
 ffmpeg 原则：
 
 ```bash
@@ -205,6 +230,7 @@ ffmpeg -y -i final_silent.mp4 -i song.mp3 \
 | 文件 | 说明 |
 |------|------|
 | `song.mp3` | 主歌曲 |
+| `voice_director_plan.json` | 声音导演稿：情绪、停顿、重音、A/B/C 试音策略 |
 | `audio_analysis.json` | Whisper + beat/energy 分析 |
 | `music_climax_analysis.json` | 2s/4s 音乐爆点窗口 |
 | `music_timeline.json` | 段落化时间线 |
@@ -245,6 +271,9 @@ python ~/.hermes/skills/creative/musical-mv-storyboard/scripts/generate_elevenla
 ## References
 
 - `references/lip-sync-policy.md`：选择性短对口型策略
+- `references/voice-direction.md`：声音导演、A/B/C 试音、声音模板冻结
+- `references/audio-lock-policy.md`：主音频时间轴、封面 replace/insert、EDL 门禁
+- `references/post-production-sound.md`：配音/人声后期处理、BGM ducking、响度控制
 - `references/director-template.md`：结构化分镜模板
 - `references/prompt-craft.md`：视频 prompt 写法
 - `references/shot-types.md`：镜头类型定义
@@ -261,6 +290,8 @@ python ~/.hermes/skills/creative/musical-mv-storyboard/scripts/generate_elevenla
 | `scripts/build_video_prompts.py` | 从 shot plan 生成 creative prompts |
 | `scripts/build_preview.py` | 生成 preview.html |
 | `scripts/generate_elevenlabs_song.py` | ElevenLabs 音乐生成 |
+| `scripts/export_lipsync_proofs.py` | 从最终成片导出口型 proof clips |
+| `scripts/validate_audio_lock.py` | 校验 EDL、封面模式、口型 offset 和最终时长 |
 
 ## Blood Lessons
 

@@ -132,6 +132,24 @@ def image_figure(path: Path | None, output_path: Path, title: str, note: str = "
     """
 
 
+def build_proof_gallery(proof_dir: Path | None, output_path: Path) -> str:
+    if not proof_dir or not proof_dir.exists():
+        return ""
+    videos = sorted(proof_dir.glob("*.mp4"))
+    if not videos:
+        return ""
+    figures = "".join(
+        video_figure(path, output_path, f"口型 proof {index}", "从最终成片直接截出，不用中间小样代替。")
+        for index, path in enumerate(videos, 1)
+    )
+    return f"""
+      <div class="proof-block">
+        <h3>最终口型 proof</h3>
+        <div class="proof-grid">{figures}</div>
+      </div>
+    """
+
+
 def build_timeline(shots: list[dict], total: float) -> str:
     ticks = "".join(
         f'<span style="left:{i / total * 100:.3f}%">{i}s</span>'
@@ -283,6 +301,7 @@ def build_html(
     keyframe_dir: Path | None = None,
     video_dir: Path | None = None,
     qc_video_dir: Path | None = None,
+    proof_dir: Path | None = None,
     edl_path: Path | None = None,
 ) -> str:
     shots = shot_plan.get("shots", [])
@@ -297,6 +316,7 @@ def build_html(
     focus_video_html = video_figure(focus_video, output_path, "重点问题段复查", "只看这一段，用于判断口型遮掩、节奏或字幕是否自然。")
     contact_html = image_figure(contact_sheet, output_path, "当前成片抽帧", "快速看字幕、爆点、色调和镜头节奏。")
     reference_html = image_figure(reference_image, output_path, "主角 / 风格参考图", "用于确认角色一致性和视觉方向。")
+    proof_html = build_proof_gallery(proof_dir, output_path)
     edl_note = f'<a class="file-chip" href="{esc(relative_url(edl_path, output_path))}">EDL</a>' if edl_path else ""
 
     if not final_video_html:
@@ -384,6 +404,8 @@ th {{ background:#171e28; color:#c3ccda; font-weight:700; position:sticky; top:0
 tr:hover td {{ background:#101a27; }}
 .pill {{ background:var(--pill); color:white; border-radius:999px; padding:3px 8px; font-size:12px; white-space:nowrap; }}
 .climax-grid,.media-grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }}
+.proof-block {{ border:1px solid rgba(239,68,68,.35); background:rgba(63,13,22,.35); border-radius:16px; padding:14px; }}
+.proof-grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }}
 figure {{ margin:0; }}
 img,video {{ width:100%; max-width:100%; border-radius:14px; border:1px solid #2a3448; display:block; background:#05070a; }}
 figcaption {{ color:var(--muted); font-size:12px; margin-top:8px; word-break:break-word; line-height:1.45; display:grid; gap:3px; }}
@@ -441,10 +463,10 @@ b {{ color:#cbd5e1; }}
       <h3>先看这三件事</h3>
       <ol>
         <li>完整播放当前成片，看音乐节奏和画面爆点是否一致。</li>
-        <li>单独复查问题段，判断短对口型、闪动遮掩、字幕是否自然。</li>
+        <li>单独复查最终口型 proof，不要用中间小样代替最终验证。</li>
         <li>看抽帧图，确认色调、角色、艺术字和大场面是否统一。</li>
       </ol>
-      <div class="mini-stack">{focus_video_html}{contact_html}{reference_html}</div>
+      <div class="mini-stack">{focus_video_html}{proof_html}{contact_html}{reference_html}</div>
     </aside>
   </div>
 </section>
@@ -499,6 +521,7 @@ def main() -> None:
     parser.add_argument("--keyframe-dir", help="Directory containing shot_XX keyframes")
     parser.add_argument("--video-dir", help="Directory containing raw shot_XX videos")
     parser.add_argument("--qc-video-dir", help="Directory containing shot_XX_with_song_excerpt videos")
+    parser.add_argument("--proof-dir", help="Directory containing final lip-sync proof clips")
     parser.add_argument("--edl", help="EDL json path")
     args = parser.parse_args()
 
@@ -526,6 +549,7 @@ def main() -> None:
         keyframe_dir=path_arg(args.keyframe_dir),
         video_dir=path_arg(args.video_dir),
         qc_video_dir=path_arg(args.qc_video_dir),
+        proof_dir=path_arg(args.proof_dir),
         edl_path=path_arg(args.edl),
     )
 
