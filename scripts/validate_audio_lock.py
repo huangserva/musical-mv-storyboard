@@ -27,7 +27,7 @@ def iter_clips(edl: Any) -> list[dict[str, Any]]:
         return [item for item in edl if isinstance(item, dict)]
     if not isinstance(edl, dict):
         return []
-    for key in ("clips", "timeline", "shots", "segments"):
+    for key in ("clips", "timeline", "shots", "segments", "edl"):
         value = edl.get(key)
         if isinstance(value, list):
             return [item for item in value if isinstance(item, dict)]
@@ -35,7 +35,7 @@ def iter_clips(edl: Any) -> list[dict[str, Any]]:
 
 
 def clip_id(clip: dict[str, Any], index: int) -> str:
-    return str(clip.get("id") or clip.get("shot_id") or clip.get("name") or f"clip_{index + 1}")
+    return str(clip.get("id") or clip.get("shot_id") or clip.get("shot") or clip.get("name") or f"clip_{index + 1}")
 
 
 def clip_type(clip: dict[str, Any]) -> str:
@@ -44,11 +44,13 @@ def clip_type(clip: dict[str, Any]) -> str:
 
 def is_lipsync_clip(clip: dict[str, Any]) -> bool:
     ctype = clip_type(clip)
+    note = str(clip.get("note") or "").lower()
     return (
         ctype == "lip_sync_closeup"
         or bool(clip.get("confirmed_variant"))
         or clip.get("lip_sync_offset_seconds") is not None
         or bool(clip.get("requires_exact_lip_sync"))
+        or note.startswith("lip sync")
     )
 
 
@@ -192,4 +194,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

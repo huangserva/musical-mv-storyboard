@@ -288,6 +288,25 @@ def build_shot_cards(
     return "\n".join(cards)
 
 
+def build_prompt_map(video_prompts: Any) -> dict[str, dict]:
+    if not video_prompts:
+        return {}
+    if isinstance(video_prompts, dict):
+        prompt_items = video_prompts.get("prompts", [])
+    elif isinstance(video_prompts, list):
+        prompt_items = video_prompts
+    else:
+        return {}
+    prompt_map = {}
+    for item in prompt_items:
+        if not isinstance(item, dict):
+            continue
+        shot_id = item.get("shot_id") or item.get("id") or item.get("shot")
+        if shot_id:
+            prompt_map[str(shot_id)] = item
+    return prompt_map
+
+
 def build_html(
     shot_plan: dict,
     video_prompts: dict | None,
@@ -306,9 +325,7 @@ def build_html(
 ) -> str:
     shots = shot_plan.get("shots", [])
     total = seconds(shot_plan.get("duration"))
-    prompt_map = {}
-    if video_prompts:
-        prompt_map = {str(p.get("shot_id")): p for p in video_prompts.get("prompts", [])}
+    prompt_map = build_prompt_map(video_prompts)
 
     lip_count = sum(1 for s in shots if s.get("requires_exact_lip_sync"))
     lip_target_total = sum(seconds(s.get("target_lip_sync_duration"), shot_duration(s)) for s in shots if s.get("requires_exact_lip_sync"))
