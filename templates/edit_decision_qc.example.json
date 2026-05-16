@@ -1,0 +1,79 @@
+{
+  "decision_id": "shot_09_handoff_trim",
+  "shot_id": "shot_09",
+  "purpose": "Choose the best edit candidate before updating preview or final EDL.",
+  "music_window": {
+    "start": 102.85,
+    "end": 110.25,
+    "role": "bridge into next beat"
+  },
+  "next_shot": {
+    "shot_id": "shot_10",
+    "entry_strategy": "white flash / whip cut into foot hit or hand hit"
+  },
+  "weights": {
+    "music_alignment": 0.25,
+    "story_completeness": 0.2,
+    "handoff_energy": 0.2,
+    "visual_continuity": 0.15,
+    "bug_maskability": 0.1,
+    "editability": 0.1
+  },
+  "scoring_scale": "0-10, higher is better. bug_maskability means defects are mild or easy to hide; it is not bug severity.",
+  "criteria": {
+    "music_alignment": "Does the cut preserve the music phrase, build, beat, or drop placement?",
+    "story_completeness": "Does the cut preserve the intended narrative beat?",
+    "handoff_energy": "Does the cut push naturally into the next shot?",
+    "visual_continuity": "Does subject direction, costume, space and motion continuity hold?",
+    "bug_maskability": "Can defects be hidden by trim, flash, hard cut, crop or overlay without damaging the beat?",
+    "editability": "Does this candidate leave useful handles for post-production?"
+  },
+  "candidates": [
+    {
+      "candidate_id": "candidate_a",
+      "video": "videos/shot_09_candidate_a.mp4",
+      "contact_sheet": "videos/qc/shot_09_candidate_a_contact.jpg",
+      "source_in": 0.0,
+      "source_out": 7.2,
+      "timeline_in": 102.85,
+      "timeline_out": 110.05,
+      "scores": {
+        "music_alignment": 9,
+        "story_completeness": 9,
+        "handoff_energy": 8,
+        "visual_continuity": 7,
+        "bug_maskability": 6,
+        "editability": 8
+      },
+      "blocking_issues": [],
+      "known_issues": [
+        "brief face turn near the end, can be masked by hard cut"
+      ],
+      "reasoning": "Best musical and narrative build, minor defect is maskable."
+    },
+    {
+      "candidate_id": "candidate_b",
+      "video": "videos/shot_09_candidate_b.mp4",
+      "contact_sheet": "videos/qc/shot_09_candidate_b_contact.jpg",
+      "source_in": 0.0,
+      "source_out": 6.55,
+      "timeline_in": 103.5,
+      "timeline_out": 110.05,
+      "scores": {
+        "music_alignment": 6,
+        "story_completeness": 6,
+        "handoff_energy": 6,
+        "visual_continuity": 8,
+        "bug_maskability": 8,
+        "editability": 7
+      },
+      "blocking_issues": [],
+      "known_issues": [
+        "safer visually but loses build-up"
+      ],
+      "reasoning": "Cleaner frames, weaker bridge."
+    }
+  ],
+  "recommended_candidate": "",
+  "ranking": []
+}

@@ -1,0 +1,56 @@
+{
+  "source_song": "audio/song.mp3",
+  "source_analysis": "audio_analysis.json",
+  "created_by": "musical-mv-storyboard",
+  "principle": "Vocal phrase boundaries decide lip-sync video boundaries. Do not cut lip-sync audio from arbitrary video windows.",
+  "phrases": [
+    {
+      "phrase_id": "lip_phrase_01",
+      "shot_id": "shot_05",
+      "lyric_text": "我终于听见自己的光",
+      "source_start": 24.38,
+      "source_end": 29.38,
+      "duration": 5.0,
+      "reference_audio_wav": "audio/lip_phrases/lip_phrase_01.wav",
+      "lyric_timing": [
+        {
+          "start": 0.0,
+          "end": 1.8,
+          "text": "我终于"
+        },
+        {
+          "start": 1.8,
+          "end": 2.44,
+          "text": "听见"
+        },
+        {
+          "start": 2.44,
+          "end": 3.62,
+          "text": "自己的"
+        },
+        {
+          "start": 3.62,
+          "end": 4.02,
+          "text": "光"
+        },
+        {
+          "start": 4.02,
+          "end": 5.0,
+          "text": "尾音和情绪保持"
+        }
+      ],
+      "boundary_evidence": {
+        "whisper_no_prompt": "previous phrase ends before this window; target phrase starts here",
+        "whisper_with_lyric_prompt": "我终于听见自己的光",
+        "energy_check": "start excludes previous-line tail; end leaves vocal tail/emotion hold"
+      },
+      "selection_reason": "Complete final vocal phrase; excludes previous-line tail; safe for one Seedance lip-sync shot.",
+      "qc_status": "reference_audio_transcribes_correctly",
+      "seedance": {
+        "duration": 5,
+        "generate_audio_for_qc": true,
+        "final_audio_policy": "Use master song in final mix. Seedance generated audio is diagnostic only."
+      }
+    }
+  ]
+}

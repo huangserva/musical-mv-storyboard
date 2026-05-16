@@ -15,13 +15,17 @@ The core principle is simple: **the song is the master timeline**. Visuals, capt
 
 V2 adds a second core principle: **voice must be directed, not merely generated**. For narration, TTS, cloned voice, or vocal performance, create a voice director plan, audition the strongest 15-20 seconds, then freeze the accepted voice template before long-form generation.
 
+V2.6 adds the lip-sync lesson from production: **vocal phrase boundaries decide lip-sync video boundaries**. A `lip_sync_closeup` must bind to a clean, complete vocal phrase first; do not cut reference audio from arbitrary 5s/6s video windows.
+
 ## Key Rules
 
 - Analyze music climax windows before designing shots.
+- Build `lip_sync_phrase_map.json` before any lip-sync video generation.
+- Every `lip_sync_closeup` must bind to one complete vocal phrase; never use arbitrary shot windows as the reference audio source.
 - Create `voice_director_plan.json` before long TTS / narration / vocal clone generation.
 - Confirm A/B/C voice auditions before generating full-length voice.
 - Use short lip-sync clips, usually 3-4 seconds, not long continuous lip-sync by default.
-- For Seedance MV generation, use `generate_audio: false`; final audio comes from the master song.
+- For Seedance MV final generation, final audio comes from the master song; `generate_audio: true` is allowed only as single-shot lip-sync QC.
 - Freeze confirmed A/B/C lip-sync offsets in the EDL.
 - Cover/title cards default to replacing the first N seconds, not inserting time before the main edit.
 - Always maintain `preview.html` as the director review board.
@@ -32,13 +36,14 @@ V2 adds a second core principle: **voice must be directed, not merely generated*
 1. Lock or generate the song.
 2. Build the voice director plan when the project needs narration, TTS, cloned voice, or vocal performance.
 3. Analyze lyrics, vocal timing, beat, energy, and climax windows.
-4. Build a timeline and initial shot classification.
-5. Let the director/LLM revise the shot plan around the real musical peaks.
-6. Generate keyframes and update `preview.html`.
-7. Generate Seedance clips serially, with cost control.
-8. Build the EDL and final edit with ffmpeg.
-9. Export contact sheets and lip-sync proof clips.
-10. Validate the audio lock before delivery.
+4. Build `lip_sync_phrase_map.json` from complete vocal phrases for lip-sync candidates.
+5. Build a timeline and initial shot classification.
+6. Let the director/LLM revise the shot plan around the real musical peaks and phrase map.
+7. Generate keyframes and update `preview.html`.
+8. Generate Seedance clips serially, with cost control.
+9. Build the EDL and final edit with ffmpeg.
+10. Export contact sheets and lip-sync proof clips.
+11. Validate the audio lock before delivery.
 
 ## Main Files
 
@@ -51,11 +56,13 @@ V2 adds a second core principle: **voice must be directed, not merely generated*
 - `references/director-template.md` - structured director planning template.
 - `references/prompt-craft.md` - image/video prompt guidance.
 - `references/shot-types.md` - shot type definitions.
+- `templates/lip_sync_phrase_map.example.json` - required phrase-map structure for lip-sync shots.
 - `scripts/analyze_audio.py` - Whisper + audio feature analysis.
 - `scripts/analyze_climax_windows.py` - climax window detection.
 - `scripts/build_music_timeline.py` - timeline construction.
 - `scripts/classify_musical_shots.py` - first-pass shot classification.
 - `scripts/build_video_prompts.py` - generate creative prompts from a shot plan.
+- `scripts/validate_lip_sync_phrase_map.py` - fail-fast gate for phrase-driven lip-sync shots.
 - `scripts/build_preview.py` - generate the review-board `preview.html`.
 - `scripts/generate_elevenlabs_song.py` - ElevenLabs music generation helper.
 - `scripts/export_lipsync_proofs.py` - export proof clips from the final video itself.
@@ -67,7 +74,10 @@ V2 adds a second core principle: **voice must be directed, not merely generated*
 python scripts/analyze_audio.py song.mp3 --language zh --output audio_analysis.json
 python scripts/analyze_climax_windows.py song.mp3 --output music_climax_analysis.json
 python scripts/build_music_timeline.py audio_analysis.json --output music_timeline.json
+# Build lip_sync_phrase_map.json before deciding exact lip-sync shots.
 python scripts/classify_musical_shots.py music_timeline.json --output shot_plan.auto.json
+python scripts/validate_lip_sync_phrase_map.py lip_sync_phrase_map.json \
+  --shot-plan shot_plan.director.json
 ```
 
 After the director plan is revised, generate prompts and preview:

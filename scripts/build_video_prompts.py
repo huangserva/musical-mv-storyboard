@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -71,6 +72,62 @@ def ensure_no_audio_instruction(prompt: str) -> str:
     if prompt.endswith("."):
         return f"{prompt} {NO_AUDIO_INSTRUCTION}"
     return f"{prompt}. {NO_AUDIO_INSTRUCTION}"
+
+
+def choose_seedance_model(shot: dict) -> str:
+    """Route Seedance model by whether faces/real people matter."""
+    explicit = shot.get("seedance_model")
+    if explicit:
+        return explicit
+
+    shot_type = shot.get("shot_type", "mv_broll")
+    text = " ".join(
+        str(shot.get(key, ""))
+        for key in (
+            "visual_description",
+            "director_intent",
+            "lip_sync_notes",
+            "seedance_image_prompt",
+            "seedance_video_prompt",
+        )
+    ).lower()
+    english_face_terms = {
+        "face",
+        "mouth",
+        "lip",
+        "sing",
+        "singer",
+        "woman",
+        "man",
+        "female",
+        "male",
+        "girl",
+        "boy",
+        "person",
+        "people",
+        "guard",
+        "curator",
+        "cleaner",
+        "performer",
+    }
+    chinese_face_terms = (
+        "人脸",
+        "真人",
+        "女主",
+        "男主",
+        "主唱",
+        "对口型",
+        "嘴",
+        "脸",
+    )
+    english_tokens = set(re.findall(r"[a-z]+", text))
+    if (
+        shot_type in {"lip_sync_closeup", "performance_medium"}
+        or bool(english_tokens & english_face_terms)
+        or any(term in text for term in chinese_face_terms)
+    ):
+        return "doubao-seedance-2.0-face"
+    return "doubao-seedance-2.0"
 
 
 def build_prompt_for_shot(shot: dict, style: str = "") -> dict:
@@ -134,7 +191,7 @@ def build_prompt_for_shot(shot: dict, style: str = "") -> dict:
         "video_prompt": video_prompt,
         # Seedance I2V specific
         "seedance_duration": seedance_duration,
-        "seedance_model": "doubao-seedance-2.0-fast-face",
+        "seedance_model": choose_seedance_model(shot),
         "seedance_size": "9:16",
         "seedance_resolution": "480p",
         "seedance_generate_audio": False,

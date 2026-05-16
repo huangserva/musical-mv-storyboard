@@ -1,0 +1,34 @@
+{
+  "plan_id": "example_climax_unit_duration_plan",
+  "project": "example_mv",
+  "source_music": "song.mp3",
+  "decision_summary": {
+    "recommended_final_window": {"start": 99.32, "end": 122.25, "duration": 22.93},
+    "single_seedance_task_allowed": false,
+    "reason": "The music unit contains suspense setup, reveal, chain reaction, and explosion. A single 15s generation task would overload the video model."
+  },
+  "story_beats": [
+    {
+      "beat_id": "beat_01",
+      "music_start": 99.32,
+      "music_end": 104.5,
+      "dramatic_function": "discover something but see nothing",
+      "minimum_readable_seconds": 5.0,
+      "visual_goal": "character stops, turns, checks the glass case, and sees no anomaly"
+    }
+  ],
+  "generation_units": [
+    {
+      "unit_id": "unit_01_discovery",
+      "music_start": 99.32,
+      "music_end": 104.5,
+      "final_duration": 5.18,
+      "seedance_duration": 6,
+      "source_beats": ["beat_01"],
+      "max_major_actions": 2,
+      "primary_visual_action": "character stops and checks a display case",
+      "prompt_strategy": "one visible action chain, no hidden director logic",
+      "status": "planned"
+    }
+  ]
+}

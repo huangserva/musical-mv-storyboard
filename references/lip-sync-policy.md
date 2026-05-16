@@ -8,6 +8,8 @@
 
 **先找爆点，再找口型点。** 口型点不是只看人声密度，也要看能量和 onset 起跳。先用 `scripts/analyze_climax_windows.py` 生成 `music_climax_analysis.json`，再决定 lip-sync 落点。
 
+**声音分段决定视频分段。** 对口型镜头不能从任意视频窗口里切音频。必须先找到完整、干净的人声乐句，导出参考音频，再决定这个口型镜头的画面、时长和 prompt。
+
 观众听到歌词 + 看到嘴巴在动 + 时间点对上 = 视觉上就是对口型。大脑会自动补全。
 
 ## Two Types of Clips
@@ -30,6 +32,49 @@
 同时从 `music_climax_analysis.json` 读取：
 - `top_4s_windows`：主要 lip-sync 候选窗口
 - `top_2s_windows`：硬切、闪白、推拉、hero pose 候选窗口
+
+### Step 1.5: 建立 `lip_sync_phrase_map`
+
+这是付费生视频前的硬门禁。每个口型镜头必须引用一个 `phrase_id`，不能直接引用任意 shot 的 `start/end`。
+
+`lip_sync_phrase_map.json` 示例：
+
+```json
+{
+  "source_song": "song.mp3",
+  "phrases": [
+    {
+      "phrase_id": "lip_phrase_05",
+      "lyric_text": "我终于听见自己的光",
+      "source_start": 24.38,
+      "source_end": 29.38,
+      "duration": 5.0,
+      "reference_audio_wav": "audio/lip_phrases/lip_phrase_05.wav",
+      "lyric_timing": [
+        {"start": 0.00, "end": 1.80, "text": "我终于"},
+        {"start": 1.80, "end": 2.44, "text": "听见"},
+        {"start": 2.44, "end": 3.62, "text": "自己的"},
+        {"start": 3.62, "end": 4.02, "text": "光"},
+        {"start": 4.02, "end": 5.00, "text": "尾音和情绪保持"}
+      ],
+      "selection_reason": "Complete final vocal phrase; excludes previous-line tail; leaves tail hold.",
+      "qc_status": "reference_audio_transcribes_correctly"
+    }
+  ]
+}
+```
+
+自动边界策略：
+- 使用 Whisper `word_timestamps` 找目标歌词的候选起止点。
+- 对比无提示转写和带歌词提示转写；带提示只能辅助，不能单独决定边界。
+- 检查能量谷值 / vocal activity，避免把上一句尾巴、停顿、下一句开头切进来。
+- 导出 clean PCM WAV 后，再用 Whisper 复核是否稳定转写为目标歌词。
+- 如果视频模型最短 5s，而真实乐句只有 4.1s，优先从乐句真正起点开始，尾部留尾音和情绪；不要把多余时间塞到片头。
+
+失败模式：
+- 先定 `shot_05 = 24-30s`，再切 `24-30s` 音频，可能混入上一句尾巴和下一句前奏。
+- 在片头写“准备开口 / 音乐铺垫”，可能诱导模型提前开口或重复起句。
+- 参考音频包含两个语义块时，Seedance 可能把它重构成“两段演唱”，导致改词、拖慢或重复音节。
 
 ### Step 2: 标记人声高潮
 
@@ -80,14 +125,14 @@ S = 5s 口型短片（lip-sync short）
 ### Step 4: 生成对应 prompt
 
 - **氛围长片** prompt 写场景动效（雨丝飘落、雾气流动、灯一盏盏亮起）
-- **口型短片** prompt **必须包含具体歌词**（见下方 ⚠️）
+- **口型短片** prompt **必须来自 `lip_sync_phrase_map`**，包含具体歌词、参考音频角色、相对歌词时间轴和嘴型任务（见下方 ⚠️）
 - **关键帧可以复用**：同一个场景的氛围片和口型片共用一张 keyframe
 
 > ⚠️ **CRITICAL — 口型短片 prompt 必须包含具体歌词**
 >
 > Seedance I2V **不能自动对口型**。如果不把歌词写进 prompt，生成的嘴型完全随机，跟音乐毫无关系，放在任何时间点都对不上。
 >
-> **正确做法**：从 `music_timeline.json` 提取该时间段的 Whisper 转录歌词，直接写入 Seedance prompt。
+> **正确做法**：从 `lip_sync_phrase_map.json` 读取该口型镜头绑定的完整乐句，直接写入 Seedance prompt，并导出同一个 phrase 的参考音频。
 >
 > 例：口型点 MV 11-15s = 原曲 146-150s，歌词 "ghost of yesterday"
 > ```
@@ -101,12 +146,13 @@ S = 5s 口型短片（lip-sync short）
 
 ### Step 5: 验证口型效果（先合成再继续）
 
-**生成第一个 lip-sync 片段后，必须立即合成到音乐上验证时间对齐。**
+**生成第一个 lip-sync 片段后，必须先在 shot lab 验证，再决定是否进总剪。**
 
-1. 用 ffmpeg concat 硬切（见下方 ⚠️）把 lip-sync_01 放到正确时间点 + 音乐
-2. 发给用户确认口型是否"接近对上"
-3. **只有用户确认 OK 后，才能生成 lipsync_02**
-4. 如果时间偏差（如差1秒），微调 concat 的 atrim 时间点即可，不需要重新生成视频
+1. 导出 `seedance_raw_with_generated_audio.mp4`，只用于诊断模型是否改词、重唱、变慢或重复音节。
+2. 导出 `same_video_with_reference_audio.mp4`，把同一画面贴回 `reference_audio_wav`，这是判断画面口型能否服务最终主歌的核心样片。
+3. 只有 `same_video_with_reference_audio.mp4` 可接受，才允许进入最终 EDL。
+4. 如果 Seedance 自带声音改词但贴回主歌视觉可接受，可记录为“视觉可用，生成音频不可用”；最终音频仍使用主歌。
+5. 如果时间偏差，先查 phrase 边界和 EDL offset，不要立即重生视频。
 
 > ⚠️ **为什么必须先验证**：Seedance 生成的嘴型是近似的，即使 prompt 写了歌词也不保证能对上。如果先生成3个再发现全对不上，已经浪费 $4.47。先验证1个，确认方向正确再继续。
 

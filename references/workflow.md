@@ -16,13 +16,23 @@ audio_analysis.json
 music_climax_analysis.json
   ↓ build_music_timeline.py
 music_timeline.json
+  ↓ [extract clean complete vocal phrases]
+lip_sync_phrase_map.json
   ↓ classify_musical_shots.py
 shot_plan.auto.json
-  ↓ [director/LLM revises with climax windows]
+  ↓ [director/LLM revises with climax windows + phrase map]
 shot_plan.director.json
   ↓ build_video_prompts.py
 video_prompts.json
-  ↓ [keyframes → preview.html gate → Seedance I2V → EDL/ffmpeg]
+  ↓ [asset_review gate → cinematic keyframes → preview.html gate → Seedance I2V]
+candidate clips
+  ↓ [when 2+ candidates exist: score_edit_candidates.py]
+edit_decision_qc.json
+  ↓ [recommended candidate → draft EDL]
+*_edl.json
+  ↓ [prepare_final_edit.py hard gate]
+final_edit_gate_report.json
+  ↓ [ffmpeg]
 final_output.mp4
   ↓ export_lipsync_proofs.py + validate_audio_lock.py
 lipsync_proof/*.mp4 + validated EDL
@@ -78,6 +88,41 @@ Use the result before final shot planning:
 - `top_2s_windows`: candidates for beat cuts, flash hits, push-ins, and hero poses
 
 Do not equate a larger visual with a stronger musical moment. If the highest 4s window has vocals, make it a short singer-led lip-sync shot; place wide shots and group dance before/after it.
+
+### Step 2.7: Lip-Sync Phrase Map
+
+Before any `lip_sync_closeup` is planned or generated, build `lip_sync_phrase_map.json`.
+
+Purpose: make the vocal phrase, not the video segment, decide the lip-sync clip boundary.
+
+Required checks:
+- The phrase is one complete vocal sentence or musically complete line.
+- It does not include the previous line tail, a mid-line pause plus another line, or the next line intro.
+- The exported reference audio is clean PCM WAV.
+- Whisper can transcribe the exported reference audio as the target lyric.
+- If a 5s Seedance minimum is longer than the true vocal phrase, extra time belongs after the phrase as tail/emotion hold, not before the phrase as "preparation".
+
+Minimal phrase object:
+
+```json
+{
+  "phrase_id": "lip_phrase_05",
+  "lyric_text": "我终于听见自己的光",
+  "source_start": 24.38,
+  "source_end": 29.38,
+  "duration": 5.0,
+  "reference_audio_wav": "audio/lip_phrases/lip_phrase_05.wav",
+  "lyric_timing": [
+    {"start": 0.00, "end": 1.80, "text": "我终于"},
+    {"start": 1.80, "end": 2.44, "text": "听见"},
+    {"start": 2.44, "end": 3.62, "text": "自己的"},
+    {"start": 3.62, "end": 4.02, "text": "光"}
+  ],
+  "qc_status": "reference_audio_transcribes_correctly"
+}
+```
+
+Director rule: a `lip_sync_closeup` in `shot_plan.director.json` must reference a `phrase_id`. If it does not, it is not ready for paid video generation.
 
 ### Realistic `audio_analysis.json` Excerpt
 
@@ -325,6 +370,33 @@ See `director-template.md` for the full worked example of shots 01, 02, and 03.
 
 ---
 
+## Step 5.5: Asset Review Gate
+
+Before cinematic keyframes, create asset review images for any project with complex recurring assets:
+
+- main character face / body / wardrobe states
+- family or group members
+- vehicles
+- important props
+- museum artifacts / creature cast / product cast
+- locations that must remain recognizable
+
+The asset review image is not a mood shot. It answers one question: **what does this asset look like?**
+
+Asset review requirements:
+
+- light neutral background, conservation studio / casting sheet / reference table look
+- soft clear lighting, readable silhouette, enough space around the subject
+- no dark MV atmosphere, no stage lighting, no smoke, no heavy shadows, no red lasers, no fantasy glow
+- for antiques: real material age first, including patina, oxidation, chips, cracks, dust, faded pigment, old restoration marks
+- for characters: face, hair, body type, wardrobe state and accessories must be inspectable
+
+Only after the asset review is readable and accepted should the director create `cinematic_keyframe` images. Cinematic keyframes may use night lighting, dramatic contrast, movement, camera angle, effects, and MV atmosphere.
+
+Preview rule: `preview.html` must show asset review before shot keyframes. If the page jumps straight to dark cinematic images, the gate is missing. When `edit_decision_qc.json` exists, preview must also show the recommended candidate and ranking before old/alternate versions.
+
+---
+
 ## Step 6: Generate Video Prompts
 
 Run `scripts/build_video_prompts.py` on the enriched `shot_plan.json`.
@@ -362,28 +434,56 @@ Run `scripts/build_video_prompts.py` on the enriched `shot_plan.json`.
 ```
 For each shot in shot_plan.json:
 
-1. GENERATE KEYFRAME IMAGE
-   - Use seedance_image_prompt with GPT-Image-2 / doubao
+1. ASSET REVIEW GATE
+   - If the shot uses recurring people, vehicles, props, museum artifacts, creatures, products, or costumes, first confirm the matching `asset_review` image.
+   - Do not use dark cinematic mood images for this step.
+
+2. GENERATE CINEMATIC KEYFRAME IMAGE
+   - Use seedance_image_prompt with GPT-Image-2 / doubao after the asset review is accepted.
+   - For every visual_duration_plan generation_unit, generate one single-scene cinematic keyframe. The keyframe is the actual first visual state of that micro-shot, not a design sheet.
+   - Never send asset review sheets, prop cast sheets, contact sheets, or storyboard grids directly to Seedance. They are upstream references only.
    - Upload to public URL (imgur)
 
-2. SEEDANCE I2V
+3. SEEDANCE I2V
    - Submit image URL + seedance_video_prompt to APImart
-   - MV default: `doubao-seedance-2.0-fast-face`, `480p`, `9:16`, `generate_audio=false`
+   - Real-person / face / singer / lip-sync shots default to `doubao-seedance-2.0-face`, `480p`, `9:16`, `generate_audio=false`
+   - Non-human / object / landscape / abstract B-roll shots default to `doubao-seedance-2.0`, `480p`, `9:16`, `generate_audio=false`
+   - `fast` models are only for low-cost direction tests; do not use fast for candidate final clips by default
    - Use `image_urls` with public URLs; do not assume Seedance accepts local file paths or base64
    - For lip-sync shots, generate the provider minimum if needed, but plan to use only the best 3-4s in the EDL
    - For long B-roll/dance shots, split into 5-15s chunks only when the timeline requires it
    - Output: scene_XX.mp4
 
-3. PLACE ON TIMELINE
+4. EDIT DECISION QC
+   - If there is only one usable candidate, record the reason in the EDL notes.
+   - If there are 2+ trims or 2+ generated versions, create `edit_decision_qc.json` from `templates/edit_decision_qc.example.json`.
+   - Run `scripts/score_edit_candidates.py edit_decision_qc.json --write`.
+   - Use the highest-scored non-blocked `recommended_candidate` as the preview/EDL default.
+   - Do not pick a shorter version only because it hides one defect if it damages music build, story completeness, or handoff energy.
+
+5. PLACE ON TIMELINE
    - Each clip goes at its start time from shot_plan.json
    - Fill gaps with black frames or last-frame hold
+   - If the clip came from `edit_decision_qc.json`, add `edit_decision_candidate_id` to the EDL entry.
 
-4. OPTIONAL WAV2LIP (only when exact lip-sync is required)
+6. FINAL EDIT GATE
+   - Before final ffmpeg concat, run `scripts/prepare_final_edit.py`.
+   - The script must pass before delivery. It fails if EDL references the wrong candidate, lacks a recommended candidate, or cannot prove the recommended source.
+
+   ```bash
+   python ~/.hermes/skills/creative/musical-mv-storyboard/scripts/prepare_final_edit.py \
+     --discover-root . \
+     --edl videos/final/final_edl.json \
+     --output videos/final/final_edit_gate_report.json \
+     --require-edl
+   ```
+
+7. OPTIONAL WAV2LIP (only when exact lip-sync is required)
    - Extract matching audio segment: song.mp3 from {start}s to {end}s
    - Run Wav2Lip on scene_XX.mp4 with audio segment only if Seedance approximate lip-sync is not enough
    - Output: scene_XX_lipsync.mp4
 
-5. FFMPEG CONCAT
+8. FFMPEG CONCAT
    - All clips → concat demuxer → master timeline
    - Mix in original song.mp3 as audio track
    - Output: final_output.mp4
@@ -400,9 +500,12 @@ For each shot in shot_plan.json:
 | `music_climax_analysis.json` | analyze_climax_windows.py | director planning, build_preview.py |
 | `music_timeline.json` | build_music_timeline.py | classify_musical_shots.py |
 | `shot_plan.json` | classify_musical_shots.py + director | build_video_prompts.py |
+| `assets/asset_review/*` | director / image generator | asset identity gate, build_preview.py |
 | `video_prompts.json` | build_video_prompts.py | Image + I2V generation |
 | `preview.html` | build_preview.py | Human/agent QC gate |
 | `scene_XX.mp4` | Seedance I2V | Wav2Lip, ffmpeg |
+| `edit_decision_qc.json` | score_edit_candidates.py / director | build_preview.py via `--edit-decision-qc`, EDL selection |
 | `*_edl.json` | ffmpeg/assembly script | final timeline source of truth |
+| `final_edit_gate_report.json` | prepare_final_edit.py | delivery gate evidence |
 | `*_contact.jpg` | ffmpeg/QC script | visual QC |
 | `final_output.mp4` | ffmpeg | Delivery |

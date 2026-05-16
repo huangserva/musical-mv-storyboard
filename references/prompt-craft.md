@@ -31,6 +31,8 @@ The uploaded keyframe image defines:
 - The color palette and lighting
 - The composition and framing
 
+Therefore the uploaded image must already be a single cinematic shot frame. Do not upload asset review sheets, prop cast sheets, character design sheets, contact sheets, storyboard grids, or multi-panel collages as the main Seedance image. If the image is a sheet/grid, Seedance will usually animate the sheet/grid itself, even if the prompt says not to show it.
+
 The video prompt should NOT redundantly describe these. It should describe:
 - Movement (of subjects, camera, elements)
 - Timing and pace (slow, fast, sudden, gradual)
