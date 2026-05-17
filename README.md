@@ -2,6 +2,8 @@
 
 Music-first workflow for making AI-assisted musical videos and MV-style short films.
 
+**Current production version: v2.11.** The `v1` and `v1.0.0` tags point to the older baseline before the V2 workflow gates.
+
 This skill helps an agent plan and produce a music video from the song outward: lyrics, vocals, climax windows, short lip-sync moments, voice direction, keyframes, Seedance video generation, EDL, preview page, and final ffmpeg post-production.
 
 ## What It Is For
@@ -17,11 +19,17 @@ V2 adds a second core principle: **voice must be directed, not merely generated*
 
 V2.6 adds the lip-sync lesson from production: **vocal phrase boundaries decide lip-sync video boundaries**. A `lip_sync_closeup` must bind to a clean, complete vocal phrase first; do not cut reference audio from arbitrary 5s/6s video windows.
 
+V2.11 adds hard production gates: **director score before single-shot prompts, visual duration planning before Seedance, lip-sync gate before/final, rhythm audit after edit changes, and auto-maintained preview pages.**
+
 ## Key Rules
 
 - Analyze music climax windows before designing shots.
+- Write `director_score.json` before optimizing any single shot.
+- Validate `visual_duration_plan.json` before writing Seedance prompts for complex sections.
 - Build `lip_sync_phrase_map.json` before any lip-sync video generation.
 - Every `lip_sync_closeup` must bind to one complete vocal phrase; never use arbitrary shot windows as the reference audio source.
+- Run `scripts/lip_sync_gate.py` before lip-sync generation and again before final delivery.
+- Run `scripts/rhythm_audit.py` after any EDL cut, insert, compression, or reorder.
 - Create `voice_director_plan.json` before long TTS / narration / vocal clone generation.
 - Confirm A/B/C voice auditions before generating full-length voice.
 - Use short lip-sync clips, usually 3-4 seconds, not long continuous lip-sync by default.
@@ -51,18 +59,28 @@ V2.6 adds the lip-sync lesson from production: **vocal phrase boundaries decide 
 - `references/lip-sync-policy.md` - short lip-sync strategy and post-production timing rules.
 - `references/voice-direction.md` - voice director plan, A/B/C audition, accepted voice template.
 - `references/audio-lock-policy.md` - master audio timeline, cover replace/insert policy, EDL gates.
+- `references/director-score.md` - whole-film director score, visual chapters, shot duties, and handoffs.
+- `references/visual-duration-planning.md` - decide how long a visual idea needs before generating video.
+- `references/edit-decision-qc.md` - candidate scoring before selecting trims or versions.
 - `references/post-production-sound.md` - EQ, compression, loudness, ducking, voice finishing.
 - `references/workflow.md` - end-to-end workflow reference.
 - `references/director-template.md` - structured director planning template.
 - `references/prompt-craft.md` - image/video prompt guidance.
 - `references/shot-types.md` - shot type definitions.
 - `templates/lip_sync_phrase_map.example.json` - required phrase-map structure for lip-sync shots.
+- `templates/visual_duration_plan.example.json` - required structure for visual duration planning.
+- `templates/edit_decision_qc.example.json` - repeatable scoring template for multiple edit candidates.
 - `scripts/analyze_audio.py` - Whisper + audio feature analysis.
 - `scripts/analyze_climax_windows.py` - climax window detection.
 - `scripts/build_music_timeline.py` - timeline construction.
 - `scripts/classify_musical_shots.py` - first-pass shot classification.
 - `scripts/build_video_prompts.py` - generate creative prompts from a shot plan.
 - `scripts/validate_lip_sync_phrase_map.py` - fail-fast gate for phrase-driven lip-sync shots.
+- `scripts/lip_sync_gate.py` - hard gate for lip-sync planning and final proof integrity.
+- `scripts/rhythm_audit.py` - audit EDL cuts against lyrics, beats, climax windows, and shot duties.
+- `scripts/score_edit_candidates.py` - weighted scoring for multiple trim/version candidates.
+- `scripts/prepare_final_edit.py` - final EDL gate ensuring recommended candidates are actually used.
+- `scripts/preview_builder.py` - auto-discover project assets and rebuild `preview.html`.
 - `scripts/build_preview.py` - generate the review-board `preview.html`.
 - `scripts/generate_elevenlabs_song.py` - ElevenLabs music generation helper.
 - `scripts/export_lipsync_proofs.py` - export proof clips from the final video itself.
